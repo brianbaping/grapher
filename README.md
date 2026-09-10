@@ -25,6 +25,8 @@ Then, in the new repo:
 
 `run/next.py` (stdlib-only Python) is the single source of truth for node state, readiness, and retry/block rules, including a structural guard that detects a verifier mutating tracked files during verification.
 
+Run `python3 run/next.py timeline` any time (it's also printed automatically at the end of a run) to see a text visualization of each node's build/verify window — a quick way to confirm which nodes actually ran in parallel.
+
 Do a first pass with a small hand-written `plan/manifest.json` before trusting the `planner` agent on a real app.
 
 ## Adding a feature to an already-built app

@@ -48,7 +48,7 @@ If any agent produces no parseable output, record that node `fail` with note `'a
 
 ## Phase 4 — Done
 
-Print the final status table (`python3 run/next.py status`).
+Print the final status table (`python3 run/next.py status`), then print `python3 run/next.py timeline` — a visual summary of each node's build/verify window, so it's visible which nodes actually ran in parallel.
 
 Check once whether opening pull requests is possible: `gh` is installed and authenticated, and the repo has an `origin` remote (`git remote get-url origin`). If either check fails, skip straight to the fallback below for every node.
 

@@ -71,6 +71,9 @@ def cmd_init():
             "verdict": None,
             "notes": "",
             "pre_verify_head": None,
+            "started_at": None,
+            "verifying_at": None,
+            "finished_at": None,
         })
 
 
@@ -117,6 +120,9 @@ def cmd_start(node_id):
     s = load_state(node_id)
     s["status"] = "building"
     s["worktree"] = f".worktrees/{node_id}"
+    s["started_at"] = datetime.now(timezone.utc).isoformat()
+    s["verifying_at"] = None
+    s["finished_at"] = None
     save_state(node_id, s)
 
 
@@ -159,6 +165,7 @@ def cmd_begin_verify(node_id):
 
     s["status"] = "verifying"
     s["pre_verify_head"] = head.stdout.strip()
+    s["verifying_at"] = datetime.now(timezone.utc).isoformat()
     save_state(node_id, s)
 
 
@@ -193,6 +200,7 @@ def cmd_record(node_id, verdict, notes):
             notes = "structural guard: verifier modified tracked files"
 
     s["pre_verify_head"] = None
+    s["finished_at"] = datetime.now(timezone.utc).isoformat()
     if verdict == "pass":
         s["status"] = "verified"
         s["verdict"] = "pass"
@@ -229,6 +237,50 @@ def cmd_reset():
     print(f"cleared {len(state_files)} node state file(s)")
 
 
+def cmd_timeline():
+    manifest = load_manifest()
+    nodes_by_id = {n["id"]: n for n in manifest["nodes"]}
+    rows = [load_state(nid) for nid in nodes_by_id]
+
+    started = [r for r in rows if r.get("started_at")]
+    if not started:
+        print("No nodes have started yet.")
+        return
+
+    def parse(ts):
+        return datetime.fromisoformat(ts)
+
+    now = datetime.now(timezone.utc)
+    t_min = min(parse(r["started_at"]) for r in started)
+    t_max = max(
+        parse(r["finished_at"]) if r.get("finished_at") else now
+        for r in started
+    )
+
+    print(f"{'id':<20} {'status':<10} {'started_at':<26} {'verifying_at':<26} {'finished_at':<26}")
+    for r in rows:
+        print(
+            f"{r['id']:<20} {r['status']:<10} "
+            f"{r.get('started_at') or '':<26} {r.get('verifying_at') or '':<26} {r.get('finished_at') or '':<26}"
+        )
+
+    print()
+    width = 50
+    span = (t_max - t_min).total_seconds()
+    for r in started:
+        start = parse(r["started_at"])
+        end = parse(r["finished_at"]) if r.get("finished_at") else now
+        if span > 0:
+            start_off = int((start - t_min).total_seconds() / span * width)
+            end_off = int((end - t_min).total_seconds() / span * width)
+        else:
+            start_off, end_off = 0, width
+        end_off = max(end_off, start_off + 1)
+        ongoing = not r.get("finished_at")
+        bar = (" " * start_off) + ("=" * (end_off - start_off)) + (">" if ongoing else "")
+        print(f"{r['id']:<20} [{bar.ljust(width + 1)}]")
+
+
 def main():
     if len(sys.argv) == 1:
         cmd_next()
@@ -246,6 +298,8 @@ def main():
         cmd_record(sys.argv[2], sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else "")
     elif cmd == "reset":
         cmd_reset()
+    elif cmd == "timeline":
+        cmd_timeline()
     else:
         print(f"unknown command: {cmd}", file=sys.stderr)
         sys.exit(1)
