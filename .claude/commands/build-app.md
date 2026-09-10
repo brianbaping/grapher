@@ -48,6 +48,18 @@ If any agent produces no parseable output, record that node `fail` with note `'a
 
 ## Phase 4 — Done
 
-Print the final status table (`python3 run/next.py status`) and list the worktree branches in dependency order, so the user can review and merge them.
+Print the final status table (`python3 run/next.py status`).
 
-Do not merge anything yourself. Never edit files under `.worktrees/` directly.
+Check once whether opening pull requests is possible: `gh` is installed and authenticated, and the repo has an `origin` remote (`git remote get-url origin`). If either check fails, skip straight to the fallback below for every node.
+
+Otherwise, for each verified node, in the order it appears in `plan/manifest.json` (dependency order — leaf nodes first):
+
+1. Push its branch: `git push -u origin node/<id>`.
+2. Open a pull request against `main`: `gh pr create --base main --head node/<id> --title '<id>: <desc>' --body '<body>'`, where `<desc>` is that node's `desc` from the manifest, and `<body>` is composed from that node's `desc`, its `accept` criteria (as a checklist), and the contents of `run/state/<id>.summary.md` if that file exists.
+   - If the push or the `gh pr create` call fails for this node specifically, don't stop the loop — fall back to listing that one branch's name (see below) and move on to the next node.
+
+Print the list of what happened per node — a PR URL, or (via the fallback) a bare branch name — in the same dependency order, and tell the user to **merge them in that order**: a dependent node's branch already has its dependencies' code merged into it, so merging leaf-node PRs first is what keeps each later PR's diff clean (GitHub recomputes an open PR's diff once an earlier one lands on `main`).
+
+**Fallback** (no `gh`/no `origin`/a specific PR failed): list that branch's name instead of a PR link, and tell the user to review and merge it manually with `git merge node/<id>`.
+
+Do not merge or push to `main` yourself, and never edit files under `.worktrees/` directly — opening a PR (or, on fallback, just naming the branch) is the extent of this phase's involvement with `main`.

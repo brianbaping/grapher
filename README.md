@@ -21,7 +21,7 @@ Then, in the new repo:
 2. **Build** — each ready node gets its own git worktree (`.worktrees/<id>` on branch `node/<id>`), merged with its dependencies' verified code, and a `builder` agent implements it test-first.
 3. **Verify** — a separate `verifier` agent (no write access) runs the tests and judges the node against its acceptance criteria.
 4. **Retry or block** — failed nodes retry up to 3 times with the verifier's notes fed back to the builder; a node that fails 3 times blocks the run.
-5. **Done** — once every node is verified, you review and merge the node branches yourself — the harness never merges or pushes on its own.
+5. **Done** — for each verified node, in dependency order, it pushes the branch and opens a pull request against `main` (falling back to just naming the branch if `gh`/a remote isn't available, or a specific PR fails). It never merges anything itself — review and merge the PRs yourself, in the order given, since a dependent node's branch already has its dependencies merged in.
 
 `run/next.py` (stdlib-only Python) is the single source of truth for node state, readiness, and retry/block rules, including a structural guard that detects a verifier mutating tracked files during verification.
 
