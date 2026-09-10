@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """Graph-build harness node state tracker."""
 import json
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 MANIFEST_PATH = Path("plan/manifest.json")
 STATE_DIR = Path("run/state")
+
+
+def git(*args, cwd):
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
 
 
 def load_manifest():
@@ -107,8 +112,31 @@ def cmd_start(node_id):
     save_state(node_id, s)
 
 
+def cmd_begin_verify(node_id):
+    s = load_state(node_id)
+    worktree = s["worktree"]
+    dirty = git("status", "--porcelain", "--untracked-files=no", cwd=worktree)
+    if dirty.stdout.strip():
+        print(f"ERROR: worktree {worktree} has uncommitted tracked changes", file=sys.stderr)
+        sys.exit(1)
+    head = git("rev-parse", "HEAD", cwd=worktree)
+    s["status"] = "verifying"
+    s["pre_verify_head"] = head.stdout.strip()
+    save_state(node_id, s)
+
+
 def cmd_record(node_id, verdict, notes):
     s = load_state(node_id)
+    pre_head = s.get("pre_verify_head")
+    if pre_head:
+        worktree = s["worktree"]
+        head = git("rev-parse", "HEAD", cwd=worktree).stdout.strip()
+        dirty = git("status", "--porcelain", "--untracked-files=no", cwd=worktree).stdout.strip()
+        if head != pre_head or dirty:
+            verdict = "fail"
+            notes = "structural guard: verifier modified tracked files"
+
+    s["pre_verify_head"] = None
     if verdict == "pass":
         s["status"] = "verified"
         s["verdict"] = "pass"
@@ -132,6 +160,8 @@ def main():
         cmd_status()
     elif cmd == "start":
         cmd_start(sys.argv[2])
+    elif cmd == "begin-verify":
+        cmd_begin_verify(sys.argv[2])
     elif cmd == "record":
         cmd_record(sys.argv[2], sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else "")
     else:
