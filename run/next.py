@@ -205,6 +205,30 @@ def cmd_record(node_id, verdict, notes):
     save_state(node_id, s)
 
 
+def cmd_reset():
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    state_files = sorted(STATE_DIR.glob("*.json"))
+    if not state_files:
+        return
+
+    not_terminal = []
+    for path in state_files:
+        state = json.loads(path.read_text())
+        if state.get("status") not in ("verified", "blocked"):
+            not_terminal.append(state.get("id", path.stem))
+    if not_terminal:
+        print(
+            "ERROR: cannot reset -- node(s) not in a terminal state (verified/blocked): "
+            + ", ".join(not_terminal),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    for path in state_files:
+        path.unlink()
+    print(f"cleared {len(state_files)} node state file(s)")
+
+
 def main():
     if len(sys.argv) == 1:
         cmd_next()
@@ -220,6 +244,8 @@ def main():
         cmd_begin_verify(sys.argv[2])
     elif cmd == "record":
         cmd_record(sys.argv[2], sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else "")
+    elif cmd == "reset":
+        cmd_reset()
     else:
         print(f"unknown command: {cmd}", file=sys.stderr)
         sys.exit(1)
