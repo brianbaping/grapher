@@ -44,6 +44,9 @@ def detect_cycle(nodes_by_id):
             sys.exit(1)
         visiting.add(node_id)
         for dep in nodes_by_id[node_id].get("deps", []):
+            if dep not in nodes_by_id:
+                print(f"ERROR: node {node_id} depends on unknown node {dep}", file=sys.stderr)
+                sys.exit(1)
             visit(dep, path + [node_id])
         visiting.discard(node_id)
         visited.add(node_id)
@@ -92,7 +95,12 @@ def cmd_next():
             continue
         if s["attempts"] >= 3:
             continue
-        if all(states[dep]["status"] == "verified" for dep in node.get("deps", [])):
+        deps = node.get("deps", [])
+        for dep in deps:
+            if dep not in states:
+                print(f"ERROR: node {nid} depends on unknown node {dep}", file=sys.stderr)
+                sys.exit(1)
+        if all(states[dep]["status"] == "verified" for dep in deps):
             print(nid)
 
 
@@ -114,6 +122,14 @@ def cmd_start(node_id):
 
 def cmd_begin_verify(node_id):
     s = load_state(node_id)
+    status = s["status"]
+    if status != "building":
+        print(
+            f"ERROR: node {node_id} is not awaiting verification start (status: {status})",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     worktree = s.get("worktree")
     if not worktree:
         print(f"ERROR: node {node_id} has no worktree set", file=sys.stderr)
