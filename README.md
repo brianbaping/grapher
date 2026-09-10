@@ -26,3 +26,7 @@ Then, in the new repo:
 `run/next.py` (stdlib-only Python) is the single source of truth for node state, readiness, and retry/block rules, including a structural guard that detects a verifier mutating tracked files during verification.
 
 Do a first pass with a small hand-written `plan/manifest.json` before trusting the `planner` agent on a real app.
+
+## Adding a feature to an already-built app
+
+Once a round is fully verified and merged into `main`, use the `build-feature` skill instead of `/build-app` to extend the app. It archives the previous round's `plan/design.md` and `plan/manifest.json` into git history, clears node state with `python3 run/next.py reset`, and then continues through the same plan/build/verify loop as `/build-app` — scoped to the new feature instead of a whole new app.
