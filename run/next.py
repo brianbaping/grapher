@@ -148,16 +148,31 @@ def cmd_begin_verify(node_id):
 
 def cmd_record(node_id, verdict, notes):
     s = load_state(node_id)
-    if s["status"] != "verifying":
-        print(f"ERROR: node {node_id} is not awaiting verification (status: {s['status']})", file=sys.stderr)
+    status = s["status"]
+    if status not in ("building", "verifying"):
+        print(f"ERROR: node {node_id} is not awaiting verification (status: {status})", file=sys.stderr)
+        sys.exit(1)
+    if status == "building" and verdict == "pass":
+        print(f"ERROR: node {node_id} cannot be recorded pass without begin-verify (status: building)", file=sys.stderr)
         sys.exit(1)
 
     pre_head = s.get("pre_verify_head")
     if pre_head:
         worktree = s["worktree"]
-        head = git("rev-parse", "HEAD", cwd=worktree).stdout.strip()
-        dirty = git("status", "--porcelain", "--untracked-files=no", cwd=worktree).stdout.strip()
-        if head != pre_head or dirty:
+        try:
+            head_result = git("rev-parse", "HEAD", cwd=worktree)
+            dirty_result = git("status", "--porcelain", "--untracked-files=no", cwd=worktree)
+        except OSError:
+            head_result = None
+            dirty_result = None
+        if (
+            head_result is None
+            or dirty_result is None
+            or head_result.returncode != 0
+            or dirty_result.returncode != 0
+            or head_result.stdout.strip() != pre_head
+            or dirty_result.stdout.strip()
+        ):
             verdict = "fail"
             notes = "structural guard: verifier modified tracked files"
 
