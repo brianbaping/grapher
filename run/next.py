@@ -114,12 +114,33 @@ def cmd_start(node_id):
 
 def cmd_begin_verify(node_id):
     s = load_state(node_id)
-    worktree = s["worktree"]
+    worktree = s.get("worktree")
+    if not worktree:
+        print(f"ERROR: node {node_id} has no worktree set", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        toplevel = git("rev-parse", "--show-toplevel", cwd=worktree)
+    except OSError:
+        print(f"ERROR: worktree {worktree} does not exist or is not accessible", file=sys.stderr)
+        sys.exit(1)
+    if toplevel.returncode != 0 or Path(toplevel.stdout.strip()).resolve() != Path(worktree).resolve():
+        print(f"ERROR: worktree {worktree} is not a real git worktree", file=sys.stderr)
+        sys.exit(1)
+
     dirty = git("status", "--porcelain", "--untracked-files=no", cwd=worktree)
+    if dirty.returncode != 0:
+        print(f"ERROR: git status failed in worktree {worktree}", file=sys.stderr)
+        sys.exit(1)
     if dirty.stdout.strip():
         print(f"ERROR: worktree {worktree} has uncommitted tracked changes", file=sys.stderr)
         sys.exit(1)
+
     head = git("rev-parse", "HEAD", cwd=worktree)
+    if head.returncode != 0:
+        print(f"ERROR: git rev-parse HEAD failed in worktree {worktree}", file=sys.stderr)
+        sys.exit(1)
+
     s["status"] = "verifying"
     s["pre_verify_head"] = head.stdout.strip()
     save_state(node_id, s)
@@ -127,6 +148,10 @@ def cmd_begin_verify(node_id):
 
 def cmd_record(node_id, verdict, notes):
     s = load_state(node_id)
+    if s["status"] != "verifying":
+        print(f"ERROR: node {node_id} is not awaiting verification (status: {s['status']})", file=sys.stderr)
+        sys.exit(1)
+
     pre_head = s.get("pre_verify_head")
     if pre_head:
         worktree = s["worktree"]
