@@ -16,9 +16,3 @@ A personal Claude Code harness for building apps as a graph of agents: an idea b
 
 - Fill in `.claude/skills/stack/SKILL.md` — it's a TODO template for your project's language, framework, test command, and conventions. The `builder` and `verifier` agents both read it.
 - Do a first pass with a small hand-written `plan/manifest.json` (see the design doc) before trusting the `planner` agent on a real app.
-
-## Docs
-
-- [`docs/superpowers/specs/2026-09-10-graph-build-harness-design.md`](docs/superpowers/specs/2026-09-10-graph-build-harness-design.md) — the design spec
-- [`docs/superpowers/plans/2026-09-10-graph-build-harness.md`](docs/superpowers/plans/2026-09-10-graph-build-harness.md) — the implementation plan
-- [`CLAUDE.md`](CLAUDE.md) — guidance for Claude Code instances working in this repo
