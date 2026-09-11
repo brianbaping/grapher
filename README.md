@@ -32,3 +32,7 @@ Do a first pass with a small hand-written `plan/manifest.json` before trusting t
 ## Adding a feature to an already-built app
 
 Once a round is fully verified and merged into `main`, use the `build-feature` skill instead of `/build-app` to extend the app. It archives the previous round's `plan/design.md` and `plan/manifest.json` into git history, clears node state with `python3 run/next.py reset`, and then continues through the same plan/build/verify loop as `/build-app` — scoped to the new feature instead of a whole new app.
+
+## Building a Launchpad app
+
+If the app is going into PING Launchpad, run `/build-launchpad-app "describe the app"` instead of `/build-app`. It's the same plan/build/verify graph, with one extra phase inserted after the design is approved: it registers the app with Launchpad (Entra app registration, deploy identity), generates the Dockerfile and CI workflow, and fills in the `stack` skill from Launchpad's recommendation — all committed to `main` before any node starts building. It assumes the `lp-*` repo already exists and is checked out locally.
