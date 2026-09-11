@@ -35,4 +35,10 @@ Once a round is fully verified and merged into `main`, use the `build-feature` s
 
 ## Building a Launchpad app
 
-If the app is going into PING Launchpad, run `/build-launchpad-app "describe the app"` instead of `/build-app`. It's the same plan/build/verify graph, with one extra phase inserted after the design is approved: it registers the app with Launchpad (Entra app registration, deploy identity), generates the Dockerfile and CI workflow, and fills in the `stack` skill from Launchpad's recommendation — all committed to `main` before any node starts building. It assumes the `lp-*` repo already exists and is checked out locally.
+If the app is going into PING Launchpad, run `/build-launchpad-app "describe the app"` instead of `/build-app`. It assumes the `lp-*` repo already exists and is checked out locally, and runs the same graph through five phases:
+
+1. **Brainstorm** — same interview as `/build-app`, but it never asks about ERP system, cloud provider, auth system, or deployment target — Launchpad already knows those (Infor M3, Azure, Entra ID, Innovation Kubernetes). Writes `plan/design.md`, needs your approval.
+2. **Launchpad Setup** — calls `plan_build` for a stack/deploy recommendation, `entra_create_app_registration` and `create_deploy_identity` to register the app, and `generate_app_dockerfile`/`generate_github_workflow` (and `generate_app_database` if needed) to scaffold it. Fills in `.claude/skills/stack/SKILL.md` from that recommendation, then commits everything straight to `main` so every node's worktree inherits it.
+3. **Plan** — same `planner` agent as `/build-app`, producing app-code nodes only; no Launchpad-specific nodes.
+4. **Build/Verify** — identical worktree-based builder/verifier loop as `/build-app`.
+5. **Done** — same push-branch-and-open-PR flow as `/build-app`. After you've merged everything, it reminds you that promoting to production (`request_prod_promotion`, `grant_prod_approval`) is a manual Launchpad step outside the command's scope.
